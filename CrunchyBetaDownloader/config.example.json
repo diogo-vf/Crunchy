@@ -1,0 +1,7 @@
+{
+  "username": "",
+  "password": "",
+  "download_destination": ".\\Downloads",
+  "show_log": true,
+  "log_destination": ".\\CrunchyBetaDownloader.log"
+}
