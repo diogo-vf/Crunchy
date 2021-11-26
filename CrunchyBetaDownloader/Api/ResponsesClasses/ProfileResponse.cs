@@ -1,21 +1,21 @@
-﻿using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
 
 namespace CrunchyBetaDownloader.Api.ResponsesClasses
 {
     public class ProfileResponse : Response
     {
-        [JsonPropertyName("preferred_content_subtitle_language")]
+        [JsonProperty("preferred_content_subtitle_language")]
         public string? PreferredContentSubtitleLanguage { get; set; }
-        [JsonPropertyName("username")]
+        [JsonProperty("username")]
         public string? Username { get; set; }
-        [JsonPropertyName("email")]
+        [JsonProperty("email")]
         public string? Email { get; set; }
 
         public override string ToString()
         {
-            return $@"email: ""{Email}""
+            return $@"{base.ToString()}
+email: ""{Email}""
 Username: ""{Username}""
-{base.ToString()}
 Preferred content subtitle language: ""{PreferredContentSubtitleLanguage}""";
         }
     }

@@ -1,17 +1,26 @@
 ﻿using System;
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 
 namespace CrunchyBetaDownloader.Api.ResponsesClasses
 {
     public class AccountResponse : Response
     {
-        [JsonPropertyName("account_id")]
+        [JsonProperty("account_id")]
         public string? AccountId { get; set; }
-        [JsonPropertyName("external_id")]
+        [JsonProperty("external_id")]
         public string? ExternalId { get; set; }
-        [JsonPropertyName("email_verified")]
-        public string? EmailVerified { get; set; }
-        [JsonPropertyName("created")]
+        [JsonProperty("email_verified")]
+        public bool EmailVerified { get; set; }
+        [JsonProperty("created")]
         public DateTime? CreatedOn { get; set; }
+        
+        public override string ToString()
+        {
+            return $@"{base.ToString()}
+Account id: ""{AccountId}""
+ExternalId: ""{ExternalId}""
+EmailVerified: {EmailVerified}
+Created on: {CreatedOn}";
+        }
     }
 }

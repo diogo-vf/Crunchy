@@ -1,16 +1,16 @@
-﻿using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
 
 namespace CrunchyBetaDownloader.Api.ResponsesClasses
 {
     public class TokenResponse : Response
     {
         //account id is only available when we use etp_rt or mobile login request
-        [JsonPropertyName("account_id")]
+        [JsonProperty("account_id")]
         public string? AccountId { get; set; }
 
         public override string ToString()
         {
-            return $"Account id: \"{AccountId}\"\n{base.ToString()}";
+            return $"{base.ToString()}\nAccount id: \"{AccountId}\"";
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using CrunchyBetaDownloader.Api;
 using CrunchyBetaDownloader.Api.ResponsesClasses;
@@ -18,7 +19,9 @@ namespace CrunchyBetaDownloader
             if (string.IsNullOrEmpty(config.Username) || string.IsNullOrEmpty(config.Password)) throw new Exception();
             ApiCrunchyBeta api = new();
             Response? a = await api.Login(config.Username, config.Password);
+            a = await api.Index(a);
             Console.WriteLine(a);
+
         }
         /// <summary>
         /// Create json config if not exists with pre-requirements

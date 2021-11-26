@@ -1,36 +1,36 @@
-﻿
-using System.Text.Json.Serialization;
+﻿using System;
+using Newtonsoft.Json;
 
 namespace CrunchyBetaDownloader.Api.ResponsesClasses
 {
     public abstract class Response
     {                
         //refresh token is only available into mobile requests
-        [JsonPropertyName("refresh_token")]
+        [JsonProperty("refresh_token")]
         public string? RefreshToken { get; set; }
-        [JsonPropertyName("access_token")]
+        [JsonProperty("access_token")]
         public string? AccessToken { get; set; }
-        [JsonPropertyName("expires_in")]
+        [JsonProperty("expires_in")]
         public int? ExpiresIn { get; set; }
-        [JsonPropertyName("token_type")]
+        [JsonProperty("token_type")]
         public string? TokenType { get; set; }
-        [JsonPropertyName("scope")]
+        [JsonProperty("scope")]
         public string? Scope { get; set; }
-        [JsonPropertyName("country")]
+        [JsonProperty("country")]
         public string? Country { get; set; }
+        public DateTime? ExpireAt { get; set; }
 
         public override string ToString()
         {
             return $@"
-Token type: ""{TokenType}""
 Access token:
 ""{AccessToken}""
+Token type: ""{TokenType}""
 Expire in: {ExpiresIn} sec
-Refresh token:
-""{RefreshToken}""
-Country: {Country}
-Scope:
-""{Scope}""";
+Expire at: {ExpireAt}
+Refresh token: ""{RefreshToken}""
+Country: ""{Country}""
+Scope: ""{Scope}""";
         }
     }
 }

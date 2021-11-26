@@ -1,55 +1,40 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text.Json;
 using System.Threading.Tasks;
 using CrunchyBetaDownloader.Api.ResponsesClasses;
 using CrunchyBetaDownloader.Api.utils;
+using Newtonsoft.Json;
 
 namespace CrunchyBetaDownloader.Api
 {
     public class ApiCrunchyBeta
     {
-        private enum RequestType { Get, Post }
+        private enum RequestType
+        {
+            Get,
+            Post
+        }
 
         #region private properties
 
-        private const string BaseUrl = "https://crunchyroll.com";
         private const string AccessToken = "aHJobzlxM2F3dnNrMjJ1LXRzNWE6cHROOURteXRBU2Z6QjZvbXVsSzh6cUxzYTczVE1TY1k=";
 
         // private const string UserAgent = "Crunchyroll/3.10.0 Android/6.0 okhttp/4.9.1";
         // private const string UserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36'";
 
-        private HttpClient Client { get; init; }
-        private CookieContainer CookieContainer { get; init; }
-        private HttpClientHandler Handler { get; init; }
-        private Uri _lastUri;
+        private HttpClient Client { get; }
 
         #endregion private properties
 
-        private Cookie? GetCookie(Uri uri, string name) =>
-            CookieContainer.GetCookies(uri).FirstOrDefault(x => x.Name == name);
-
-        public Cookie? GetCookie(string name) => GetCookie(_lastUri, name);
-
         public ApiCrunchyBeta()
         {
-            _lastUri = new Uri(BaseUrl);
-
-            CookieContainer = new CookieContainer();
-            Handler = new HttpClientHandler
-            {
-                CookieContainer = CookieContainer
-            };
-            Client = new HttpClient(Handler);
+            Client = new HttpClient();
         }
 
         public async Task<ProfileResponse?> Login(string username, string password)
         {
-            Dictionary<string, string> content = new()
+            Dictionary<string, string?> content = new()
             {
                 ["username"] = username,
                 ["password"] = password,
@@ -57,80 +42,114 @@ namespace CrunchyBetaDownloader.Api
                 ["scope"] = "offline_access"
             };
 
-            string tokenResponseJson = await Request(RequestType.Post, AccessToken, content, EndPoint.Token); //await Request(RequestType.Post, AccessToken, content, EndPoint.Token);
+            string tokenResponseJson = await Request(RequestType.Post, AccessToken, content, EndPoint.Token);
             TokenResponse? tokenResponse =
                 ConvertStringJsonToResponse<TokenResponse>(tokenResponseJson);
             
             if (tokenResponse is null) throw new Exception("Fail to connect user");
-            
-            string profileResponseJson = await Request(RequestType.Get, tokenResponse.AccessToken, null, EndPoint.Profile);
-            ProfileResponse? profileResponse =
-                JsonSerializer.Deserialize<ProfileResponse>(profileResponseJson);
+            tokenResponse.ExpireAt = DateTime.Now.Add(TimeSpan.FromSeconds(tokenResponse.ExpiresIn ?? 0));
 
-            return profileResponse?.Feed(tokenResponse);
+            string profileResponseJson =
+                await Request(RequestType.Get, tokenResponse.AccessToken, null, EndPoint.Profile);
+            return ConvertStringJsonToResponse<ProfileResponse>(profileResponseJson)?.Feed(tokenResponse);
         }
 
-        public async Task<TokenResponse?> Search(Response? response, string query)
+        //TODO fix the error when it's useful
+        public async Task<SearchResponse?> Search(Response? response, string query, int page = 0)
         {
-            TokenResponse? tokenResponse = await RefreshToken(response);
-            // Dictionary<string, string> content = new()
-            // {
-            //     ["q"] =  query,
-            //     ["n"] = "6",
-            //     ["locale"] = 
-            // };
-            // GetRequest()
-            //
+            Response? tokenResponse = await RefreshToken(response);
+
+            Dictionary<string, string?> content = new()
+            {
+                ["q"] = query,
+                ["n"] = "4",
+                ["start"] = (4 * page).ToString(),
+            };
+
+            string searchResponseJson = await Request(RequestType.Get, tokenResponse?.AccessToken, content,
+                EndPoint.Search);
+            SearchResponse? a = ConvertStringJsonToResponse<SearchResponse>(searchResponseJson);
+            return a?.Feed(tokenResponse);
+        }
+
+        public async Task<Response?> Season(IndexResponse response, string seasonId)
+        {
+            Dictionary<string, string?> content = new()
+            {
+                ["series_id"] = seasonId,
+                ["Policy"] = response.Policy,
+                ["Signature"] = response.Signature,
+                ["Key-Pair-Id"] = response.KeyPairId
+            };
+
+            string tokenResponseJson = await Request(RequestType.Post, AccessToken, content, EndPoint.Token);
+            Response? tokenResponse =
+                ConvertStringJsonToResponse<TokenResponse>(tokenResponseJson);
             return tokenResponse;
         }
-
-        public async Task<(TokenResponse? tokenResponse, IndexResponse? response)> Index(Response? response)
+        public async Task<IndexResponse?> Index(Response? response)
         {
-            TokenResponse? tokenResponse = await RefreshToken(response);
-            IndexResponse? indexResponse = ConvertStringJsonToResponse<IndexResponse>(
-                await Request(RequestType.Get, tokenResponse?.AccessToken, null, "https://beta-api.crunchyroll.com/index/v2"));
+            Response? tokenResponse = await RefreshToken(response);
+            string indexResponseJson = await Request(RequestType.Get, tokenResponse?.AccessToken, null,
+                EndPoint.Index);
 
-            return (tokenResponse, indexResponse);
+            return ConvertStringJsonToResponse<IndexResponse>(indexResponseJson)?.Feed<IndexResponse>(tokenResponse);
         }
 
-        private async Task<TokenResponse?> RefreshToken(Response? response)
+        private async Task<Response?> RefreshToken(Response? response)
         {
-            if (string.IsNullOrEmpty(response?.RefreshToken)) throw new Exception("RefreshToken: no token Response");
-            Dictionary<string, string> content = new()
+            if ( response is null || string.IsNullOrEmpty(response.RefreshToken)) throw new Exception("RefreshToken: invalid data");
+            if (response.ExpireAt > DateTime.Now) return response;
+            
+            Dictionary<string, string?> content = new()
             {
                 ["refresh_token"] = response.RefreshToken,
                 ["grant_type"] = "refresh_token",
                 ["scope"] = "offline_access"
             };
             string json = await Request(RequestType.Post, AccessToken, content, EndPoint.Token);
+            TokenResponse? tokenResponse = ConvertStringJsonToResponse<TokenResponse>(json);
+            
+            if (tokenResponse is null) throw new Exception("Fail to connect user");
+            tokenResponse.ExpireAt = DateTime.Now.Add(TimeSpan.FromSeconds(tokenResponse.ExpiresIn ?? 0));
 
-            return ConvertStringJsonToResponse<TokenResponse>(json);
+            return tokenResponse;
         }
-        
-        private async Task<string> Request(RequestType type, string? accessToken, IEnumerable<KeyValuePair<string, string>>? content, string uri)
+
+        private async Task<string> Request(RequestType type, string? accessToken,
+            IEnumerable<KeyValuePair<string, string?>>? content, string uri)
         {
-            (HttpMethod httpMethod, string authorization) = type switch
+            (HttpMethod httpMethod, string authorizationType) = type switch
             {
                 RequestType.Post => (HttpMethod.Post, "Basic"),
                 RequestType.Get => (HttpMethod.Get, "Bearer"),
                 _ => throw new Exception($"{nameof(type)} Out of enum")
             };
-            
+
             HttpResponseMessage response;
             using (HttpRequestMessage request = new(httpMethod, uri))
             {
-                request.Headers.Add("Authorization", $"{authorization} {accessToken}");
+                request.Headers.Add("Authorization", $"{authorizationType} {accessToken}");
                 request.Content = content is null ? null : new FormUrlEncodedContent(content);
                 response = await Client.SendAsync(request);
             }
-            string json = await response.Content.ReadAsStringAsync();
 
-            return json;
+            return await response.Content.ReadAsStringAsync();
         }
 
         private static T? ConvertStringJsonToResponse<T>(string json) where T : Response
         {
-            return JsonSerializer.Deserialize<T>(json);
+            try
+            {
+                return JsonConvert.DeserializeObject<T>(json);
+            }
+            catch (Exception e)
+            {
+#if DEBUG
+                Console.WriteLine(e.Message);
+#endif
+                return default;
+            }
         }
     }
 }
