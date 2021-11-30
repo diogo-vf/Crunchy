@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using CrunchyBetaDownloader.Api;
@@ -15,13 +17,14 @@ namespace CrunchyBetaDownloader
             string jsonPath = Path.Join(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly()?.Location) ?? ".","config.json");
             CreateJsonConfigFile(jsonPath);
             IConfigData config = new JsonConfig(jsonPath);
-
+            
             if (string.IsNullOrEmpty(config.Username) || string.IsNullOrEmpty(config.Password)) throw new Exception();
             ApiCrunchyBeta api = new();
             Response? a = await api.Login(config.Username, config.Password);
-            a = await api.Index(a);
+            IndexResponse? b = await api.Index(a);
+            ObjectsResponse? c = await api.GetObject(b, "https://beta.crunchyroll.com/fr/watch/GJWU2JWE9/the-path-taken?modal=premium",
+                "fr-FR");
             Console.WriteLine(a);
-
         }
         /// <summary>
         /// Create json config if not exists with pre-requirements

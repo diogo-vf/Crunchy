@@ -6,11 +6,15 @@ namespace CrunchyBetaDownloader.Api
 {
     public class SeriesMetaData
     {
-        [JsonConverter(typeof(TimespanConverter))]
+        [JsonConverter(typeof(TimespanFromMsConverter))]
         [JsonProperty("duration_ms")]
         public TimeSpan? Duration;
-        [JsonProperty("episode_number")]
-        public int? EpisodeNumber;
+        [JsonProperty("episode_count")]
+        public double? TotalEpisodesExpected;
+        [JsonProperty("season_count")]
+        public double? TotalEpisodesOut;
+        [JsonProperty("episode")]
+        public double? EpisodeNumber;
         [JsonProperty("season_number")]
         public int? SeasonNumber;
         [JsonProperty("is_premium_only")]

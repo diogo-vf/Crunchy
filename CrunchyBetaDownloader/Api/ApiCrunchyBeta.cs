@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Net.Http;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using CrunchyBetaDownloader.Api.ResponsesClasses;
 using CrunchyBetaDownloader.Api.utils;
@@ -72,14 +75,14 @@ namespace CrunchyBetaDownloader.Api
             return a?.Feed(tokenResponse);
         }
 
-        public async Task<Response?> Season(IndexResponse response, string seasonId)
+        public async Task<Response?> Season(IndexResponse? response, string seasonId)
         {
             Dictionary<string, string?> content = new()
             {
                 ["series_id"] = seasonId,
-                ["Policy"] = response.Policy,
-                ["Signature"] = response.Signature,
-                ["Key-Pair-Id"] = response.KeyPairId
+                ["Policy"] = response?.Policy,
+                ["Signature"] = response?.Signature,
+                ["Key-Pair-Id"] = response?.KeyPairId
             };
 
             string tokenResponseJson = await Request(RequestType.Post, AccessToken, content, EndPoint.Token);
@@ -96,6 +99,45 @@ namespace CrunchyBetaDownloader.Api
             return ConvertStringJsonToResponse<IndexResponse>(indexResponseJson)?.Feed<IndexResponse>(tokenResponse);
         }
 
+        public async Task<ObjectsResponse?> GetObject(IndexResponse? indexResponse, string url, string locale)
+        {
+            string id = new Regex(@"\/[A-Z].+\/").Match(url).Value.Replace("/",string.Empty);
+            string uri = string.Format(EndPoint.Objects, indexResponse?.Bucket, id);
+            Dictionary<string, string?> content = new()
+            {
+                ["locale"] = locale,
+                ["Policy"] = indexResponse?.Policy,
+                ["Signature"] = indexResponse?.Signature,
+                ["Key-Pair-Id"] = indexResponse?.KeyPairId
+            };
+            string objectResponseJson = await Request(RequestType.Get, indexResponse?.AccessToken, content, uri, true);
+            
+            Console.WriteLine(objectResponseJson);
+            return ConvertStringJsonToResponse<ObjectsResponse>(objectResponseJson)
+                ?.Feed<ObjectsResponse>(indexResponse);
+        }
+
+        private string? ConvertIEnumableToUrl(IEnumerable<KeyValuePair<string, string?>>?  content)
+        {
+            if (content is null) return null;
+            
+            StringBuilder builder = new();
+            foreach ((string key, string? value) in content)
+            {
+                if (builder.Length > 0) builder.Append('&');
+
+                builder.Append(Encode(key));
+                builder.Append('=');
+                builder.Append(Encode(value));
+            }
+
+            return builder.ToString();
+        }
+        private static string Encode(string? data)
+        {
+            // Escape spaces as '+'.
+            return string.IsNullOrEmpty(data) ? string.Empty : Uri.EscapeDataString(data).Replace("%20", "+");
+        }
         private async Task<Response?> RefreshToken(Response? response)
         {
             if ( response is null || string.IsNullOrEmpty(response.RefreshToken)) throw new Exception("RefreshToken: invalid data");
@@ -117,7 +159,7 @@ namespace CrunchyBetaDownloader.Api
         }
 
         private async Task<string> Request(RequestType type, string? accessToken,
-            IEnumerable<KeyValuePair<string, string?>>? content, string uri)
+            IEnumerable<KeyValuePair<string, string?>>? content, string uri, bool contentOnUrl = false)
         {
             (HttpMethod httpMethod, string authorizationType) = type switch
             {
@@ -125,12 +167,14 @@ namespace CrunchyBetaDownloader.Api
                 RequestType.Get => (HttpMethod.Get, "Bearer"),
                 _ => throw new Exception($"{nameof(type)} Out of enum")
             };
-
+            if (contentOnUrl)
+                uri += $"?{ConvertIEnumableToUrl(content)}";
             HttpResponseMessage response;
             using (HttpRequestMessage request = new(httpMethod, uri))
             {
                 request.Headers.Add("Authorization", $"{authorizationType} {accessToken}");
-                request.Content = content is null ? null : new FormUrlEncodedContent(content);
+                if(!contentOnUrl)
+                    request.Content = content is null ? null : new FormUrlEncodedContent(content);
                 response = await Client.SendAsync(request);
             }
 

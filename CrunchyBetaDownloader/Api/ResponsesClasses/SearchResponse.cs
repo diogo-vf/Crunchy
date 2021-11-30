@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using CrunchyBetaDownloader.Api.utils;
 using Newtonsoft.Json;
 
 namespace CrunchyBetaDownloader.Api.ResponsesClasses
@@ -15,18 +16,11 @@ namespace CrunchyBetaDownloader.Api.ResponsesClasses
             
             [JsonProperty("items")]
             public List<Item?>? Items;
+            [JsonConverter(typeof(JsonPathConverter))]
             public class Item
             {
-                [JsonProperty("__links__.resource.href")] 
-                public string? ResourceLink;
-                [JsonProperty("__links__.resource/channel.href")] 
-                public string? ChannelLink;
-                [JsonProperty("__links__.episode/season.href")] 
-                public string? SeasonLink;
-                [JsonProperty("__links__.episode/series.href")] 
-                public string? SeriesLink;
-                [JsonProperty("__links__.streams.href")] 
-                public string? StreamsLink;
+                [JsonProperty("__links__")]
+                public LinksAttributes? Links;
                 [JsonProperty("channel_id")]
                 public string? ChannelId;
                 [JsonProperty("description")]
@@ -48,7 +42,7 @@ namespace CrunchyBetaDownloader.Api.ResponsesClasses
                 [JsonProperty("type")]
                 public bool Type;
                 [JsonProperty("series_metadata")]
-                public SeriesMetaData? Metadata;
+                public SeriesMetaData? SeriesMetadata;
                 [JsonProperty("playback")]
                 public string? Playback;
             }
