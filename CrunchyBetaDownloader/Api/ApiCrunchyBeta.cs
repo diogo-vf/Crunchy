@@ -46,14 +46,15 @@ namespace CrunchyBetaDownloader.Api
             };
 
             string tokenResponseJson = await Request(RequestType.Post, AccessToken, content, EndPoint.Token);
-            TokenResponse? tokenResponse =
-                ConvertStringJsonToResponse<TokenResponse>(tokenResponseJson);
-            
+            TokenResponse? tokenResponse = ConvertStringJsonToResponse<TokenResponse>(tokenResponseJson);
+
             if (tokenResponse is null) throw new Exception("Fail to connect user");
-            tokenResponse.ExpiresAt = DateTime.Now.AddSeconds(TimeSpan.FromSeconds(tokenResponse.ExpiresIn - 5 ?? 0).TotalSeconds);
+            tokenResponse.ExpiresAt =
+                DateTime.Now.AddSeconds(TimeSpan.FromSeconds(tokenResponse.ExpiresIn - 5 ?? 0).TotalSeconds);
 
             string profileResponseJson =
                 await Request(RequestType.Get, tokenResponse.AccessToken, null, EndPoint.Profile);
+
             return ConvertStringJsonToResponse<ProfileResponse>(profileResponseJson)?.Feed(tokenResponse);
         }
 
@@ -90,6 +91,7 @@ namespace CrunchyBetaDownloader.Api
                 ConvertStringJsonToResponse<TokenResponse>(tokenResponseJson);
             return tokenResponse;
         }
+
         public async Task<IndexResponse?> Index(Response? response)
         {
             Response? tokenResponse = await RefreshToken(response);
@@ -101,7 +103,7 @@ namespace CrunchyBetaDownloader.Api
 
         public async Task<ObjectsResponse?> GetObject(IndexResponse? indexResponse, string url, string locale)
         {
-            string id = new Regex(@"\/[A-Z].+\/").Match(url).Value.Replace("/",string.Empty);
+            string id = new Regex(@"\/[A-Z]\w+").Match(url).Value.Replace("/", string.Empty);
             string uri = string.Format(EndPoint.Objects, indexResponse?.Bucket, id);
             Dictionary<string, string?> content = new()
             {
@@ -111,21 +113,23 @@ namespace CrunchyBetaDownloader.Api
                 ["Key-Pair-Id"] = indexResponse?.KeyPairId
             };
             string objectResponseJson = await Request(RequestType.Get, indexResponse?.AccessToken, content, uri, true);
-            
+
             return ConvertStringJsonToResponse<ObjectsResponse>(objectResponseJson)
                 ?.Feed<ObjectsResponse>(indexResponse);
         }
+
         public async Task<VideoStreams?> CallPlayback(string playback, ObjectsResponse? objectsResponse = null)
         {
             string objectResponseJson = await Request(RequestType.Get, null, null, playback);
-            
+
             return ConvertStringJsonToResponse<VideoStreams>(objectResponseJson)
                 ?.Feed<VideoStreams>(objectsResponse);
         }
-        private string? ConvertIEnumableToUrl(IEnumerable<KeyValuePair<string, string?>>?  content)
+
+        private string? ConvertIEnumableToUrl(IEnumerable<KeyValuePair<string, string?>>? content)
         {
             if (content is null) return null;
-            
+
             StringBuilder builder = new();
             foreach ((string key, string? value) in content)
             {
@@ -138,16 +142,19 @@ namespace CrunchyBetaDownloader.Api
 
             return builder.ToString();
         }
+
         private static string Encode(string? data)
         {
             // Escape spaces as '+'.
             return string.IsNullOrEmpty(data) ? string.Empty : Uri.EscapeDataString(data).Replace("%20", "+");
         }
+
         private async Task<Response?> RefreshToken(Response? response)
         {
-            if ( response is null || string.IsNullOrEmpty(response.RefreshToken)) throw new Exception("RefreshToken: invalid data");
+            if (response is null || string.IsNullOrEmpty(response.RefreshToken))
+                throw new Exception("RefreshToken: invalid data");
             if (response.ExpiresAt > DateTime.Now) return response;
-            
+
             Dictionary<string, string?> content = new()
             {
                 ["refresh_token"] = response.RefreshToken,
@@ -156,10 +163,11 @@ namespace CrunchyBetaDownloader.Api
             };
             string json = await Request(RequestType.Post, AccessToken, content, EndPoint.Token);
             TokenResponse? tokenResponse = ConvertStringJsonToResponse<TokenResponse>(json);
-            
+
             if (tokenResponse is null) throw new Exception("Fail to connect user");
-            tokenResponse.ExpiresAt = DateTime.Now.AddSeconds(TimeSpan.FromSeconds(tokenResponse.ExpiresIn ?? 0).TotalSeconds);
-            
+            tokenResponse.ExpiresAt =
+                DateTime.Now.AddSeconds(TimeSpan.FromSeconds(tokenResponse.ExpiresIn ?? 0).TotalSeconds);
+
             return tokenResponse;
         }
 
@@ -178,7 +186,7 @@ namespace CrunchyBetaDownloader.Api
             using (HttpRequestMessage request = new(httpMethod, uri))
             {
                 request.Headers.Add("Authorization", $"{authorizationType} {accessToken}");
-                if(!contentOnUrl)
+                if (!contentOnUrl)
                     request.Content = content is null ? null : new FormUrlEncodedContent(content);
                 response = await Client.SendAsync(request);
             }
