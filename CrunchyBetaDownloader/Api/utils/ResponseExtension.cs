@@ -10,6 +10,7 @@ namespace CrunchyBetaDownloader.Api.utils
             response.RefreshToken = feederResponse.RefreshToken;
             response.AccessToken = feederResponse.AccessToken;
             response.ExpiresIn = feederResponse.ExpiresIn;
+            response.ExpiresAt = feederResponse.ExpiresAt;
             response.TokenType = feederResponse.TokenType;
             response.Scope = feederResponse.Scope;
             response.Country = feederResponse.Country;

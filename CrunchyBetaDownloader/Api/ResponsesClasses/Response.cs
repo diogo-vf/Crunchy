@@ -1,4 +1,5 @@
 ﻿using System;
+using CrunchyBetaDownloader.Api.utils;
 using Newtonsoft.Json;
 
 namespace CrunchyBetaDownloader.Api.ResponsesClasses
@@ -18,7 +19,7 @@ namespace CrunchyBetaDownloader.Api.ResponsesClasses
         public string? Scope { get; set; }
         [JsonProperty("country")]
         public string? Country { get; set; }
-        public DateTime? ExpireAt { get; set; }
+        public DateTime? ExpiresAt { get; set; }
 
         public override string ToString()
         {
@@ -27,7 +28,7 @@ Access token:
 ""{AccessToken}""
 Token type: ""{TokenType}""
 Expire in: {ExpiresIn} sec
-Expire at: {ExpireAt}
+Expire at: {ExpiresAt?.ToString()}
 Refresh token: ""{RefreshToken}""
 Country: ""{Country}""
 Scope: ""{Scope}""";

@@ -50,7 +50,7 @@ namespace CrunchyBetaDownloader.Api
                 ConvertStringJsonToResponse<TokenResponse>(tokenResponseJson);
             
             if (tokenResponse is null) throw new Exception("Fail to connect user");
-            tokenResponse.ExpireAt = DateTime.Now.Add(TimeSpan.FromSeconds(tokenResponse.ExpiresIn ?? 0));
+            tokenResponse.ExpiresAt = DateTime.Now.AddSeconds(TimeSpan.FromSeconds(tokenResponse.ExpiresIn - 5 ?? 0).TotalSeconds);
 
             string profileResponseJson =
                 await Request(RequestType.Get, tokenResponse.AccessToken, null, EndPoint.Profile);
@@ -112,11 +112,16 @@ namespace CrunchyBetaDownloader.Api
             };
             string objectResponseJson = await Request(RequestType.Get, indexResponse?.AccessToken, content, uri, true);
             
-            Console.WriteLine(objectResponseJson);
             return ConvertStringJsonToResponse<ObjectsResponse>(objectResponseJson)
                 ?.Feed<ObjectsResponse>(indexResponse);
         }
-
+        public async Task<VideoStreams?> CallPlayback(string playback, ObjectsResponse? objectsResponse = null)
+        {
+            string objectResponseJson = await Request(RequestType.Get, null, null, playback);
+            
+            return ConvertStringJsonToResponse<VideoStreams>(objectResponseJson)
+                ?.Feed<VideoStreams>(objectsResponse);
+        }
         private string? ConvertIEnumableToUrl(IEnumerable<KeyValuePair<string, string?>>?  content)
         {
             if (content is null) return null;
@@ -141,7 +146,7 @@ namespace CrunchyBetaDownloader.Api
         private async Task<Response?> RefreshToken(Response? response)
         {
             if ( response is null || string.IsNullOrEmpty(response.RefreshToken)) throw new Exception("RefreshToken: invalid data");
-            if (response.ExpireAt > DateTime.Now) return response;
+            if (response.ExpiresAt > DateTime.Now) return response;
             
             Dictionary<string, string?> content = new()
             {
@@ -153,8 +158,8 @@ namespace CrunchyBetaDownloader.Api
             TokenResponse? tokenResponse = ConvertStringJsonToResponse<TokenResponse>(json);
             
             if (tokenResponse is null) throw new Exception("Fail to connect user");
-            tokenResponse.ExpireAt = DateTime.Now.Add(TimeSpan.FromSeconds(tokenResponse.ExpiresIn ?? 0));
-
+            tokenResponse.ExpiresAt = DateTime.Now.AddSeconds(TimeSpan.FromSeconds(tokenResponse.ExpiresIn ?? 0).TotalSeconds);
+            
             return tokenResponse;
         }
 
