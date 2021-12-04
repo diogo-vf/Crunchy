@@ -35,7 +35,7 @@ namespace CrunchyBetaDownloader.Api
             Client = new HttpClient();
         }
 
-        public async Task<ProfileResponse?> Login(string username, string password)
+        public async Task<ProfileResponse?> Login(string? username, string? password)
         {
             Dictionary<string, string?> content = new()
             {

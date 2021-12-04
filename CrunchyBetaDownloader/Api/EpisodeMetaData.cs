@@ -31,6 +31,11 @@ namespace CrunchyBetaDownloader.Api
         [JsonProperty("subtitle_locales")] 
         public IList<string>? Subtitles;
 
+        /// <summary>
+        /// name with special char removed
+        /// </summary>
+        public string FileName { get; set; } = string.Empty;
+        public string SubsFileName { get; set; } = string.Empty;
 
     }
 }

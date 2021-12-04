@@ -20,6 +20,10 @@ namespace CrunchyBetaDownloader.Api
     {
         [JsonProperty("adaptive_dash")]
         public Dictionary<string, Stream?>? AdaptiveDash;
+        [JsonProperty("adaptive_hls")]
+        public Dictionary<string, Stream?>? AdaptiveHls;
+        [JsonProperty("download_hls")]
+        public Dictionary<string, Stream?>? DownloadHls;
 
         public class Stream
         {

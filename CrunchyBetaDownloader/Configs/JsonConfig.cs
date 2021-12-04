@@ -8,6 +8,8 @@ namespace CrunchyBetaDownloader.Configs
     {
         public string? Username { get; init; }
         public string? Password { get; init; }
+        public string SpacesCharacter { get; init; }
+        public string NameFormat { get; init; }
         public bool ShowLog { get; init; }
         public string DownloadDestination { get; init; }
         public string LogDestination { get; init; }
@@ -20,6 +22,8 @@ namespace CrunchyBetaDownloader.Configs
             JsonNode? json = JsonNode.Parse(jsonString);
             Username = GetJsonValue(ref json, "username");
             Password = GetJsonValue(ref json, "password");
+            SpacesCharacter = GetJsonValue(ref json, "spaces_character") ?? throw new Exception("config file incomplete");
+            NameFormat = GetJsonValue(ref json, "name_format") ?? throw new Exception("config file incomplete");
             ShowLog = json?["show_log"]?.GetValue<bool>() ?? false;
             DownloadDestination = string.IsNullOrEmpty(GetJsonValue(ref json, "download_destination"))
                 ? Path.Join(".", "Downloads")
@@ -31,12 +35,14 @@ namespace CrunchyBetaDownloader.Configs
                         : GetJsonValue(ref json, "log_destination"), "CrunchyBetaDownloader.log");
         }
 
-        private string? GetJsonValue(ref JsonNode? json, string param) => json?[param]?.GetValue<string>();
+        private static string? GetJsonValue(ref JsonNode? json, string param) => json?[param]?.GetValue<string>();
 
         public static JsonObject PreRequirementJson() => new()
         {
             ["username"] = string.Empty,
             ["password"] = string.Empty,
+            ["spaces_character"] = " ",
+            ["name_format"] = "{name} - Saison {seasonNumber} - {episodeNumber}",
             ["download_destination"] = Path.Join(".", "Downloads"),
             ["show_log"] = true,
             ["log_destination"] = Path.Join(".", "CrunchyBetaDownloader.log")

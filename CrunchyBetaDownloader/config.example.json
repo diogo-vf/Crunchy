@@ -1,6 +1,8 @@
 {
   "username": "",
   "password": "",
+  "spaces_character": " ",
+  "name_format": "{name} - Saison {seasonNumber} - {episodeNumber}",
   "download_destination": ".\\Downloads",
   "show_log": true,
   "log_destination": ".\\CrunchyBetaDownloader.log"
