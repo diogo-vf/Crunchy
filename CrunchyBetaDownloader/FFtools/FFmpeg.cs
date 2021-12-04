@@ -9,7 +9,7 @@ namespace CrunchyBetaDownloader.FFtools
 {
     public class FFmpeg
     {
-        private CRFFmpegWrapper? _ffmpeg;
+        private CrFFmpegWrapper? _ffmpeg;
 
         public event ConversionProgressEventHandler? OnProgress;
 
@@ -44,7 +44,7 @@ namespace CrunchyBetaDownloader.FFtools
 
             CustomStopwatch stopwatch = new();
             stopwatch.Start();
-            _ffmpeg = new CRFFmpegWrapper();
+            _ffmpeg = new CrFFmpegWrapper();
             try
             {
                 _ffmpeg.OnProgress += OnProgress;

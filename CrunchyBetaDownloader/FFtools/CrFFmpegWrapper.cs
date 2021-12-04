@@ -11,7 +11,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace CrunchyBetaDownloader.FFtools
 {
-    internal class CRFFmpegWrapper : CRFFmpegProcess
+    internal class CrFFmpegWrapper : CrFFmpegProcess
     {
         private static readonly Regex STimeFormatRegex = new("\\w\\w:\\w\\w:\\w\\w", RegexOptions.Compiled);
         private List<string>? _outputLog;

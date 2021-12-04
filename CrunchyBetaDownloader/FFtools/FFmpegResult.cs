@@ -7,7 +7,7 @@ namespace CrunchyBetaDownloader.FFtools
         /// <summary>Date and time of starting ffmpeg conversion</summary>
         public DateTime? StartTime { get; init;}
 
-        /// <summary>Date and time of endinf ffmpeg conversion</summary>
+        /// <summary>Date and time of ending ffmpeg conversion</summary>
         public DateTime? EndTime { get; init;}
 
         /// <summary>ffmpeg duration time for converting </summary>

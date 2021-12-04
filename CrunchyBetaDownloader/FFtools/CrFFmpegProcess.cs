@@ -8,7 +8,7 @@ using CrunchyBetaDownloader.FFtools.Exceptions;
 
 namespace CrunchyBetaDownloader.FFtools
 {
-    public abstract class CRFFmpegProcess
+    public abstract class CrFFmpegProcess
     {
         public static string ExecutablesPath { get; private set; } = string.Empty;
         
@@ -18,7 +18,7 @@ namespace CrunchyBetaDownloader.FFtools
         private static readonly object FfprobePathLock = new();
         private const string FfmpegExecutableName = "ffmpeg";
         private const string FfprobeExecutableName = "ffprobe";
-        protected string? FFmpegPath
+        protected static string? FFmpegPath
         {
             get
             {
@@ -31,7 +31,7 @@ namespace CrunchyBetaDownloader.FFtools
                     _ffmpegPath = value;
             }
         }
-        protected string? FFprobePath
+        protected static string? FFprobePath
         {
             get
             {
@@ -53,7 +53,7 @@ namespace CrunchyBetaDownloader.FFtools
         /// <param name="standardOutput">Should redirect standard output</param>
         /// <param name="standardError">Should redirect standard error</param>
         /// <returns>FFmpeg or  ffprobe Process</returns>
-        protected Process RunProcess(
+        protected static Process RunProcess(
             string args,
             string? processPath,
             ProcessPriorityClass? priority,
@@ -89,7 +89,7 @@ namespace CrunchyBetaDownloader.FFtools
             return process;
         }
         
-        private void FindProgramsFromPath(string path)
+        private static void FindProgramsFromPath(string path)
         {
             if (!Directory.Exists(path) || string.IsNullOrEmpty(path))
                 return;
@@ -98,7 +98,7 @@ namespace CrunchyBetaDownloader.FFtools
             FFmpegPath = GetFullName(files, FfmpegExecutableName);
         }
 
-        protected CRFFmpegProcess() => FindAndValidateExecutables();
+        protected CrFFmpegProcess() => FindAndValidateExecutables();
 
         private void FindAndValidateExecutables()
         {

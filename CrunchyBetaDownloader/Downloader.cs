@@ -34,7 +34,7 @@ namespace CrunchyBetaDownloader
         private void CreateNecessaryFilesAndFolders()
         {
             if (string.IsNullOrEmpty(Config.Username) || string.IsNullOrEmpty(Config.Password))
-                throw new Exception($"Please complete json near your application");
+                throw new Exception("Please complete json near your application");
 
             if (!Directory.Exists(Config.DownloadDestination)) Directory.CreateDirectory(Config.DownloadDestination);
         }
@@ -90,14 +90,14 @@ namespace CrunchyBetaDownloader
         private async Task DownloadSubs(string folderPath, VideoStreams? videoStreams, EpisodeMetaData episode)
         {
             string[] defaultLanguagesSubs = { "fr-FR", "en-US" };
-            int languageChoosed = 0;
+            int languageChosen = 0;
             string? subsUrl = null;
             
             for (int i = 0; i < defaultLanguagesSubs.Length; i++)
             {
                 try
                 {
-                    subsUrl = videoStreams?.Subtitles?[defaultLanguagesSubs[languageChoosed = i]]?.Url;
+                    subsUrl = videoStreams?.Subtitles?[defaultLanguagesSubs[languageChosen = i]]?.Url;
                 }
                 catch
                 {
@@ -110,7 +110,7 @@ namespace CrunchyBetaDownloader
             if (subsUrl is null) throw new Exception("subtitle not found");
 
             Console.WriteLine("download the subtitles...");
-            episode.SubsFileName = $"{episode.FileName}[{defaultLanguagesSubs[languageChoosed]}]";
+            episode.SubsFileName = $"{episode.FileName}[{defaultLanguagesSubs[languageChosen]}]";
             string filePath = Path.Join(folderPath, $"{episode.SubsFileName}.ass");
 
             string subs = await DownloadWebFile(subsUrl);
@@ -127,8 +127,8 @@ namespace CrunchyBetaDownloader
             string videoPath = $"{Path.Join(folderPath, $"{episode.FileName}.mp4")}";
             string audioPath = $"{Path.Join(folderPath, $"{episode.FileName}.aac")}";
 
-            //download vidéo with ffmpeg
-            Console.WriteLine($@"download video & audio...");
+            //download video with ffmpeg
+            Console.WriteLine(@"download video & audio...");
             FFmpeg ffmpeg = new();
             ffmpeg.OnProgress += (_, args) =>
             {
@@ -154,10 +154,9 @@ namespace CrunchyBetaDownloader
             int indexBestResolution = 0;
             int bestResolution = 0;
 
-            for (var i = 0; i < matches.Count; i++)
+            for (int i = 0; i < matches.Count; i++)
             {
-                string strResolution = matches[i].Value
-                    .Substring(matches[i].Value.LastIndexOf("x", StringComparison.Ordinal) + 1);
+                string strResolution = matches[i].Value[(matches[i].Value.LastIndexOf("x", StringComparison.Ordinal) + 1)..];
                 int resolution = int.Parse(strResolution);
                 //todo after tests change <= to >=
                 if (bestResolution >= resolution && bestResolution != 0) continue;
@@ -170,7 +169,7 @@ namespace CrunchyBetaDownloader
             return m3U8.Replace("\r", "").Split('\n')[indexBestResolution * 2];
         }
 
-        private async Task CreateMkv(string folderPath, EpisodeMetaData episode)
+        private static async Task CreateMkv(string folderPath, EpisodeMetaData episode)
         {
             string videoPath = Path.Join(folderPath, $"{episode.FileName}.mp4");
             string audioPath = Path.Join(folderPath, $"{episode.FileName}.aac");
@@ -191,7 +190,7 @@ namespace CrunchyBetaDownloader
             // File.Delete(subPath);
         }
 
-        private bool IsEpisodeUrl(string url)
+        private static bool IsEpisodeUrl(string url)
         {
             const string regex = @"https?:\/\/(www\.)?beta\.crunchyroll\.com\/[a-zA-Z]{2}\/watch\/\w+(\/\w+)?";
             return new Regex(regex).IsMatch(url);

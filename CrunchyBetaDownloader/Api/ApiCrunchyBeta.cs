@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq.Expressions;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -67,7 +66,7 @@ namespace CrunchyBetaDownloader.Api
             {
                 ["q"] = query,
                 ["n"] = "4",
-                ["start"] = (4 * page).ToString(),
+                ["start"] = (4 * page).ToString()
             };
 
             string searchResponseJson = await Request(RequestType.Get, tokenResponse?.AccessToken, content,
@@ -126,7 +125,7 @@ namespace CrunchyBetaDownloader.Api
                 ?.Feed<VideoStreams>(objectsResponse);
         }
 
-        private string? ConvertIEnumableToUrl(IEnumerable<KeyValuePair<string, string?>>? content)
+        private static string? ConvertIEnumerableToUrl(IEnumerable<KeyValuePair<string, string?>>? content)
         {
             if (content is null) return null;
 
@@ -181,7 +180,7 @@ namespace CrunchyBetaDownloader.Api
                 _ => throw new Exception($"{nameof(type)} Out of enum")
             };
             if (contentOnUrl)
-                uri += $"?{ConvertIEnumableToUrl(content)}";
+                uri += $"?{ConvertIEnumerableToUrl(content)}";
             HttpResponseMessage response;
             using (HttpRequestMessage request = new(httpMethod, uri))
             {
