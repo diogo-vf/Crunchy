@@ -1,8 +1,6 @@
-﻿using System;
-using System.IO;
-using System.Text.Json;
-using System.Text.Json.Nodes;
+﻿using System.IO;
 using System.Threading.Tasks;
+using CrunchyBetaDownloader.Api.ResponsesClasses;
 using CrunchyBetaDownloader.Configs;
 
 namespace CrunchyBetaDownloader
@@ -11,13 +9,17 @@ namespace CrunchyBetaDownloader
     {
         public static async Task Main(string[] args)
         {
-            string jsonPath = Path.Join(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly()?.Location) ?? ".","config.json");
+            string jsonPath =
+                Path.Join(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly()?.Location) ?? ".",
+                    "config.json");
             CreateJsonConfigFile(jsonPath);
+            
             IConfigData config = new JsonConfig(jsonPath);
-            if (config.Username is null || config.Password is null) throw new Exception();
-            ApiCrunchyBeta api = new();
-            Console.WriteLine(await api.Token(config.Username, config.Username));
+            Downloader downloader = new(config);
+            IndexResponse? indexResponse = await downloader.Login();
+            await downloader.Download(indexResponse, args);
         }
+
         /// <summary>
         /// Create json config if not exists with pre-requirements
         /// </summary>
