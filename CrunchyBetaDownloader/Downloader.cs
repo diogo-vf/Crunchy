@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CrunchyBetaDownloader.Api;
 using CrunchyBetaDownloader.Api.ResponsesClasses;
+using CrunchyBetaDownloader.Api.utils;
 using CrunchyBetaDownloader.Configs;
 using CrunchyBetaDownloader.FFtools;
 
@@ -45,49 +46,88 @@ namespace CrunchyBetaDownloader
             return await Api.Index(profileResponse);
         }
 
-        public async Task Download(IndexResponse? indexResponse, IEnumerable<string> urls)
+        public async Task Download(IndexResponse? indexResponse, IEnumerable<string> urls, string locale)
+        {
+            var enumerable = urls.ToList();
+            List<string> seriesUrl = GetSeriesUrl(enumerable).ToList();
+            List<string> episodesUrl = GetEpisodesUrl(enumerable).ToList();
+            await DownloadFromSeriesLink(indexResponse, seriesUrl, locale);
+            await DownloadFromEpisodeLink(indexResponse, episodesUrl, locale);
+
+        }
+
+        private async Task DownloadFromEpisodeLink(IndexResponse? indexResponse, IEnumerable<string> urls, string locale)
         {
             foreach (var url in urls)
             {
-                if (!IsEpisodeUrl(url)) continue;
-                ObjectsResponse? episodeResponse = await Api.GetObject(indexResponse, url, "fr-FR");
-                ObjectsResponse.Item? episode = episodeResponse?.Items?.First();
+                ObjectsResponse? episodeResponse = await Api.GetObject(indexResponse, url, locale);
+                ObjectsResponse.Item? objItem = episodeResponse?.Items?.First();
 
-                if (episode?.Playback is null ||
-                    episode.EpisodeMetaData is null ||
-                    episode.EpisodeMetaData.SeriesTitle is null &&
-                    episode.EpisodeMetaData.SeasonTitle is null)
-                    throw new Exception("no episode incomplete");
-
-                string episodeName = episode.EpisodeMetaData?.SeriesTitle ??
-                                     episode.EpisodeMetaData?.SeasonTitle!;
-
-                VideoStreams? videoStreams = await Api.CallPlayback(episode.Playback);
-
-                string cleanName =
-                    new Regex($"[{Regex.Escape(new string(Path.GetInvalidFileNameChars()))}]")
-                        .Replace(episodeName, Config.SpacesCharacter);
-                string seasonNumber = (episode.EpisodeMetaData?.SeasonNumber?.ToString() ?? "1")
-                    .PadLeft(2,'0');
-                string episodeNumber = (episode.EpisodeMetaData?.EpisodeNumber?.ToString() ?? "1")
-                    .PadLeft(2,'0');
-                
-                episode.EpisodeMetaData!.FileName = Config.NameFormat
-                    .Replace("{name}", cleanName, StringComparison.OrdinalIgnoreCase)
-                    .Replace("{seasonNumber}",seasonNumber, StringComparison.OrdinalIgnoreCase)
-                    .Replace("{episodeNumber}",episodeNumber, StringComparison.OrdinalIgnoreCase)
-                    .Replace(" ", Config.SpacesCharacter);
-
-                await DownloadSubs(Config.DownloadDestination, videoStreams, episode.EpisodeMetaData);
-                await DownloadVideo(Config.DownloadDestination, videoStreams, episode.EpisodeMetaData);
-                await CreateMkv(Config.DownloadDestination, episode.EpisodeMetaData);
+                if (objItem?.Playback is null ||
+                    objItem.Episode is null ||
+                    objItem.Episode.SeriesTitle is null &&
+                    objItem.Episode.SeasonTitle is null)
+                    throw new Exception($"failed to download {objItem?.Episode?.Title}");
+                objItem.Episode.Playback = objItem.Playback;
+                await DownloadEpisode(objItem.Episode);
             }
+        }
+
+        private async Task DownloadFromSeriesLink(IndexResponse? indexResponse, IEnumerable<string> urls, string locale)
+        {
+            foreach (var url in urls)
+            {
+                List<Episode> episodes = await ConvertSeriesLinkToEpisodes(indexResponse, url, locale);
+                foreach (Episode episode in episodes)
+                {
+                    await DownloadEpisode(episode);
+                }
+            }
+        }
+
+        private async Task DownloadEpisode(Episode episode)
+        {
+            if (episode.Playback is null) throw new Exception($"failed to download {episode.Title}"); 
+            string episodeName = episode.SeriesTitle ??
+                                  episode.SeasonTitle ?? throw new Exception($"{episode.Title} failed to download");
+
+            Console.WriteLine($"{episodeName}:");
+            VideoStreams? videoStreams = await Api.CallPlayback(episode.Playback);
+
+            string cleanName =
+                new Regex($"[{Regex.Escape(new string(Path.GetInvalidFileNameChars()))}]")
+                    .Replace(episodeName, Config.SpacesCharacter);
+            string seasonNumber = (episode.SeasonNumber?.ToString() ?? "1")
+                .PadLeft(2,'0');
+            string episodeNumber = (episode.EpisodeNumber?.ToString() ?? "1")
+                .PadLeft(2,'0');
+                
+            episode.FileName = Config.NameFormat
+                .Replace("{name}", cleanName, StringComparison.OrdinalIgnoreCase)
+                .Replace("{seasonNumber}",seasonNumber, StringComparison.OrdinalIgnoreCase)
+                .Replace("{episodeNumber}",episodeNumber, StringComparison.OrdinalIgnoreCase)
+                .Replace(" ", Config.SpacesCharacter);
+            Console.Write("download Subtitles");
+            await DownloadSubs(Config.DownloadDestination, videoStreams, episode);
+            Console.Write(", download video & sound...\n");
+            await DownloadVideo(Config.DownloadDestination, videoStreams, episode);
+            await CreateMkv(Config.DownloadDestination, episode);
+        }
+
+        private static IEnumerable<string> GetEpisodesUrl(IEnumerable<string> urls)
+        {
+            return urls.Where(IsEpisodeUrl);
+        }
+
+        private static IEnumerable<string> GetSeriesUrl(IEnumerable<string> urls)
+        {
+            return urls.Where(IsSeriesUrl);
         }
 
         private async Task<string> DownloadWebFile(string url) =>
             await (await Client.GetAsync(url)).Content.ReadAsStringAsync();
 
-        private async Task DownloadSubs(string folderPath, VideoStreams? videoStreams, EpisodeMetaData episode)
+        private async Task DownloadSubs(string folderPath, VideoStreams? videoStreams, Episode episode)
         {
             string[] defaultLanguagesSubs = { "fr-FR", "en-US" };
             int languageChosen = 0;
@@ -109,16 +149,14 @@ namespace CrunchyBetaDownloader
             
             if (subsUrl is null) throw new Exception("subtitle not found");
 
-            Console.WriteLine("download the subtitles...");
             episode.SubsFileName = $"{episode.FileName}[{defaultLanguagesSubs[languageChosen]}]";
             string filePath = Path.Join(folderPath, $"{episode.SubsFileName}.ass");
 
             string subs = await DownloadWebFile(subsUrl);
             await File.WriteAllTextAsync(filePath, subs);
-            Console.WriteLine("successful");
         }
 
-        private async Task DownloadVideo(string folderPath, VideoStreams? videoStreams, EpisodeMetaData episode)
+        private async Task DownloadVideo(string folderPath, VideoStreams? videoStreams, Episode episode)
         {
             string? streamUrl = SearchInM3U8TheBestDownloadUrl(videoStreams?.Streams?.AdaptiveHls?[""]?.Url);
 
@@ -128,7 +166,6 @@ namespace CrunchyBetaDownloader
             string audioPath = $"{Path.Join(folderPath, $"{episode.FileName}.aac")}";
 
             //download video with ffmpeg
-            Console.WriteLine(@"download video & audio...");
             FFmpeg ffmpeg = new();
             ffmpeg.OnProgress += (_, args) =>
             {
@@ -141,9 +178,7 @@ namespace CrunchyBetaDownloader
                 .Start(
                     $@"-y -i ""{streamUrl}"" -q:a 0 -map a -map_metadata 0 -map_metadata:s:a 0:s:a -metadata:s:a:0 language=jpn -metadata:s:a:0 title=Japonais -acodec copy ""{audioPath}"" -q:v 0 -map v -map_metadata 0 -map_metadata:s:v 0:s:v -c copy ""{videoPath}""",
                     CancellationToken.None);
-            Console.WriteLine("\n");
             Console.WriteLine(result);
-            Console.WriteLine("successful");
         }
 
         private string? SearchInM3U8TheBestDownloadUrl(string? m3U8Url)
@@ -169,7 +204,7 @@ namespace CrunchyBetaDownloader
             return m3U8.Replace("\r", "").Split('\n')[indexBestResolution * 2];
         }
 
-        private static async Task CreateMkv(string folderPath, EpisodeMetaData episode)
+        private static async Task CreateMkv(string folderPath, Episode episode)
         {
             string videoPath = Path.Join(folderPath, $"{episode.FileName}.mp4");
             string audioPath = Path.Join(folderPath, $"{episode.FileName}.aac");
@@ -185,15 +220,47 @@ namespace CrunchyBetaDownloader
             Console.WriteLine("successful");
 
             //clear mp4 and ass files after the merging
-            // File.Delete(videoPath);
-            // File.Delete(audioPath);
-            // File.Delete(subPath);
+            File.Delete(videoPath);
+            File.Delete(audioPath);
+            File.Delete(subPath);
         }
 
         private static bool IsEpisodeUrl(string url)
         {
             const string regex = @"https?:\/\/(www\.)?beta\.crunchyroll\.com\/[a-zA-Z]{2}\/watch\/\w+(\/\w+)?";
             return new Regex(regex).IsMatch(url);
+        }
+        private static bool IsSeriesUrl(string url)
+        {
+            const string regex = @"https?:\/\/(www\.)?beta\.crunchyroll\.com\/[a-zA-Z]{2}\/series\/\w+(\/\w+)?";
+            return new Regex(regex).IsMatch(url);
+        }
+        private async Task<List<Episode>> ConvertSeriesLinkToEpisodes(IndexResponse? indexResponse, string seriesUrl, string locale)
+        {
+            string id = new Regex(@"\/[A-Z]\w+").Match(seriesUrl).Value[1..];
+            SeasonsResponse? seasonsResponse = await Api.GetSeasonFromSerieId(indexResponse, id, locale);
+            List<SeasonsResponse.SeasonItem> seasons = new();
+            seasonsResponse?.SeasonItems?.ForEach(season =>
+            {
+                if(season is not null && !season.IsDubbed)
+                    seasons.Add(season);
+            });
+           return await GetEpisodesFromSeasons(indexResponse?.Feed(seasonsResponse), seasons, locale);
+        }
+
+        private async Task<List<Episode>> GetEpisodesFromSeasons(IndexResponse? indexResponse, IEnumerable<SeasonsResponse.SeasonItem> seasons, string locale)
+        {
+            List<Episode> episodes = new();
+            foreach (SeasonsResponse.SeasonItem season in seasons)
+            {
+                if(season.Id is null) continue;
+                
+                EpisodesResponse? episodesResponse = await Api.GetEpisodesFromSeasonId(indexResponse, season.Id, locale);
+                episodesResponse?.Episodes?.ForEach(episodes.Add);
+                Console.WriteLine($"get season {season.SeasonNumber?.ToString() ?? "unknown"}  of {season.Title}  with {episodesResponse?.Episodes?.Count} episodes");
+            }
+
+            return episodes;
         }
     }
 }

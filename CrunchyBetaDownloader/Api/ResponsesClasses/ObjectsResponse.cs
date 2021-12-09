@@ -28,7 +28,7 @@ namespace CrunchyBetaDownloader.Api.ResponsesClasses
             [JsonProperty("type")]
             public string? Type;
             [JsonProperty("episode_metadata")] 
-            public EpisodeMetaData? EpisodeMetaData;
+            public Episode? Episode;
             [JsonProperty("series_metadata")] 
             public SeriesMetaData? SeriesMetaData;
             [JsonProperty("playback")]

@@ -17,7 +17,7 @@ namespace CrunchyBetaDownloader
             IConfigData config = new JsonConfig(jsonPath);
             Downloader downloader = new(config);
             IndexResponse? indexResponse = await downloader.Login();
-            await downloader.Download(indexResponse, args);
+            await downloader.Download(indexResponse, args, "fr-FR");
         }
 
         /// <summary>

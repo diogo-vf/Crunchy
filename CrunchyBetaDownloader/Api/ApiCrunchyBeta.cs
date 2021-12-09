@@ -61,7 +61,6 @@ namespace CrunchyBetaDownloader.Api
         public async Task<SearchResponse?> Search(Response? response, string query, int page = 0)
         {
             Response? tokenResponse = await RefreshToken(response);
-
             Dictionary<string, string?> content = new()
             {
                 ["q"] = query,
@@ -75,20 +74,44 @@ namespace CrunchyBetaDownloader.Api
             return a?.Feed(tokenResponse);
         }
 
-        public async Task<Response?> Season(IndexResponse? response, string seasonId)
+        public async Task<SeasonsResponse?> GetSeasonFromSerieId(IndexResponse? indexResponse, string seriesId, string locale)
         {
+            Response? tokenResponse = await RefreshToken(indexResponse);
+            string uri = string.Format(EndPoint.Seasons, indexResponse?.Bucket);
+
             Dictionary<string, string?> content = new()
             {
-                ["series_id"] = seasonId,
-                ["Policy"] = response?.Policy,
-                ["Signature"] = response?.Signature,
-                ["Key-Pair-Id"] = response?.KeyPairId
+                ["series_id"] = seriesId,
+                ["locale"] = locale,
+                ["Policy"] = indexResponse?.Policy,
+                ["Signature"] = indexResponse?.Signature,
+                ["Key-Pair-Id"] = indexResponse?.KeyPairId
             };
 
-            string tokenResponseJson = await Request(RequestType.Post, AccessToken, content, EndPoint.Token);
-            Response? tokenResponse =
-                ConvertStringJsonToResponse<TokenResponse>(tokenResponseJson);
-            return tokenResponse;
+            string seasonResponseJson = await Request(RequestType.Get, AccessToken, content, uri, true);
+            SeasonsResponse? seasonsResponse =
+                ConvertStringJsonToResponse<SeasonsResponse>(seasonResponseJson);
+            
+            return seasonsResponse?.Feed(tokenResponse);
+        }
+        public async Task<EpisodesResponse?> GetEpisodesFromSeasonId(IndexResponse? indexResponse, string seasonId, string locale)
+        {
+            Response? tokenResponse = await RefreshToken(indexResponse);
+            string uri = string.Format(EndPoint.Episodes, indexResponse?.Bucket);
+
+            Dictionary<string, string?> content = new()
+            {
+                ["season_id"] = seasonId,
+                ["locale"] = locale,
+                ["Policy"] = indexResponse?.Policy,
+                ["Signature"] = indexResponse?.Signature,
+                ["Key-Pair-Id"] = indexResponse?.KeyPairId
+            };
+
+            string episodesResponseJson = await Request(RequestType.Get, AccessToken, content, uri, true);
+            EpisodesResponse? episodesResponse =
+                ConvertStringJsonToResponse<EpisodesResponse>(episodesResponseJson);
+            return episodesResponse?.Feed(tokenResponse);
         }
 
         public async Task<IndexResponse?> Index(Response? response)
