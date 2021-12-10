@@ -56,6 +56,10 @@ namespace CrunchyBetaDownloader
 
         }
 
+        public static bool IsAvailableLink(string url)
+        {
+            return new Regex(@"https?:\/\/(www\.)?beta\.crunchyroll\.com\/[a-zA-Z]{2}\/.*").IsMatch(url);
+        }
         private async Task DownloadFromEpisodeLink(IndexResponse? indexResponse, IEnumerable<string> urls, string locale)
         {
             foreach (var url in urls)
