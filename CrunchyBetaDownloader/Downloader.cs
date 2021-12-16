@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -46,13 +47,13 @@ namespace CrunchyBetaDownloader
             return await Api.Index(profileResponse);
         }
 
-        public async Task Download(IndexResponse? indexResponse, IEnumerable<string> urls, string locale)
+        public async Task Download(IndexResponse? indexResponse, IEnumerable<string> urls, string locale, ProcessPriorityClass? ffmpegPriority)
         {
             var enumerable = urls.ToList();
             List<string> seriesUrl = GetSeriesUrl(enumerable).ToList();
             List<string> episodesUrl = GetEpisodesUrl(enumerable).ToList();
-            await DownloadFromSeriesLink(indexResponse, seriesUrl, locale);
-            await DownloadFromEpisodeLink(indexResponse, episodesUrl, locale);
+            await DownloadFromSeriesLink(indexResponse, seriesUrl, locale, ffmpegPriority);
+            await DownloadFromEpisodeLink(indexResponse, episodesUrl, locale, ffmpegPriority);
 
         }
 
@@ -60,7 +61,7 @@ namespace CrunchyBetaDownloader
         {
             return new Regex(@"https?:\/\/(www\.)?beta\.crunchyroll\.com\/[a-zA-Z]{2}\/.*").IsMatch(url);
         }
-        private async Task DownloadFromEpisodeLink(IndexResponse? indexResponse, IEnumerable<string> urls, string locale)
+        private async Task DownloadFromEpisodeLink(IndexResponse? indexResponse, IEnumerable<string> urls, string locale, ProcessPriorityClass? ffmpegPriority)
         {
             foreach (var url in urls)
             {
@@ -73,23 +74,23 @@ namespace CrunchyBetaDownloader
                     objItem.Episode.SeasonTitle is null)
                     throw new Exception($"failed to download {objItem?.Episode?.Title}");
                 objItem.Episode.Playback = objItem.Playback;
-                await DownloadEpisode(objItem.Episode);
+                await DownloadEpisode(objItem.Episode, ffmpegPriority);
             }
         }
 
-        private async Task DownloadFromSeriesLink(IndexResponse? indexResponse, IEnumerable<string> urls, string locale)
+        private async Task DownloadFromSeriesLink(IndexResponse? indexResponse, IEnumerable<string> urls, string locale, ProcessPriorityClass? ffmpegPriority)
         {
             foreach (var url in urls)
             {
                 List<Episode> episodes = await ConvertSeriesLinkToEpisodes(indexResponse, url, locale);
                 foreach (Episode episode in episodes)
                 {
-                    await DownloadEpisode(episode);
+                    await DownloadEpisode(episode, ffmpegPriority);
                 }
             }
         }
 
-        private async Task DownloadEpisode(Episode episode)
+        private async Task DownloadEpisode(Episode episode, ProcessPriorityClass? ffmpegPriority)
         {
             if (episode.Playback is null) throw new Exception($"failed to download {episode.Title}"); 
             string episodeName = episode.SeriesTitle ??
@@ -114,8 +115,8 @@ namespace CrunchyBetaDownloader
             Console.Write("download Subtitles");
             await DownloadSubs(Config.DownloadDestination, videoStreams, episode);
             Console.Write(", download video & sound...\n");
-            await DownloadVideo(Config.DownloadDestination, videoStreams, episode);
-            await CreateMkv(Config.DownloadDestination, episode);
+            await DownloadVideo(Config.DownloadDestination, videoStreams, episode, ffmpegPriority);
+            await CreateMkv(Config.DownloadDestination, episode, ffmpegPriority);
         }
 
         private static IEnumerable<string> GetEpisodesUrl(IEnumerable<string> urls)
@@ -160,7 +161,7 @@ namespace CrunchyBetaDownloader
             await File.WriteAllTextAsync(filePath, subs);
         }
 
-        private async Task DownloadVideo(string folderPath, VideoStreams? videoStreams, Episode episode)
+        private async Task DownloadVideo(string folderPath, VideoStreams? videoStreams, Episode episode, ProcessPriorityClass? ffmpegPriority)
         {
             string? streamUrl = SearchInM3U8TheBestDownloadUrl(videoStreams?.Streams?.AdaptiveHls?[""]?.Url);
 
@@ -171,6 +172,7 @@ namespace CrunchyBetaDownloader
 
             //download video with ffmpeg
             FFmpeg ffmpeg = new();
+            ffmpeg.SetPriority(ffmpegPriority);
             ffmpeg.OnProgress += (_, args) =>
             {
                 int percent = (int)(Math.Round(args.Duration.TotalSeconds / args.TotalLength.TotalSeconds, 2) * 100);
@@ -208,7 +210,7 @@ namespace CrunchyBetaDownloader
             return m3U8.Replace("\r", "").Split('\n')[indexBestResolution * 2];
         }
 
-        private static async Task CreateMkv(string folderPath, Episode episode)
+        private static async Task CreateMkv(string folderPath, Episode episode, ProcessPriorityClass? ffmpegPriority)
         {
             string videoPath = Path.Join(folderPath, $"{episode.FileName}.mp4");
             string audioPath = Path.Join(folderPath, $"{episode.FileName}.aac");
@@ -217,8 +219,9 @@ namespace CrunchyBetaDownloader
 
             Console.WriteLine($@"merging video, audio and subs to create ""{mkvPath}""");
 
-            await new FFmpeg()
-                .Start(
+            FFmpeg ffmpeg = new();
+            ffmpeg.SetPriority(ffmpegPriority);
+            await ffmpeg.Start(
                     $@"-y -i ""{videoPath}"" -i ""{audioPath}"" -i ""{subPath}"" -map 0 -map 1 -map 2 -metadata:s:v:0 title=Crunchyroll -metadata:s:a:0 language=jpn -metadata:s:a:0 title=Japonais -metadata:s:a:0 language=jpn -metadata:s:a:0 title=Japonais -metadata:s:s:0 language=fre -metadata:s:s:0 title=Français -disposition:s:s:0 default -c copy ""{mkvPath}""",
                     CancellationToken.None);
             Console.WriteLine("successful");
