@@ -1,75 +1,71 @@
-﻿using System;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 using CrunchyBetaDownloader.FFtools.Events;
 using CrunchyBetaDownloader.FFtools.utils;
 
-namespace CrunchyBetaDownloader.FFtools
+namespace CrunchyBetaDownloader.FFtools;
+
+public class FFmpeg
 {
-    public class FFmpeg
+    private CrFFmpegWrapper? _ffmpeg;
+
+    public event ConversionProgressEventHandler? OnProgress;
+
+    public event DataReceivedEventHandler? OnDataReceived;
+
+    private ProcessPriorityClass? _priority;
+
+    private bool _multiThread;
+
+    public FFmpeg SetMultiThread(bool value)
     {
-        private CrFFmpegWrapper? _ffmpeg;
+        _multiThread = value;
+        return this;
+    }
 
-        public event ConversionProgressEventHandler? OnProgress;
+    public void SetPriority(ProcessPriorityClass? priority)
+    {
+        _priority = priority;
+    }
 
-        public event DataReceivedEventHandler? OnDataReceived;
+    /// <summary>
+    /// Execute ffmpeg with all parameters and reset parameters at the end
+    /// </summary>
+    /// <param name="parameters">ffmpeg parameters</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException">when ffmpeg already executed</exception>
+    public async Task<FFmpegResult> Start(string parameters, CancellationToken cancellationToken)
+    {
+        if (_ffmpeg != null)
+            throw new InvalidOperationException("ffmpeg has already been started. ");
 
-        private ProcessPriorityClass? _priority;
-
-        private bool _multiThread;
-
-        public FFmpeg SetMultiThread(bool value)
+        CustomStopwatch stopwatch = new();
+        stopwatch.Start();
+        _ffmpeg = new CrFFmpegWrapper();
+        try
         {
-            _multiThread = value;
-            return this;
+            _ffmpeg.OnProgress += OnProgress;
+            _ffmpeg.OnDataReceived += OnDataReceived;
+            string? multiThreadParam =
+                _multiThread ? $"-threads {Math.Min(Environment.ProcessorCount, 16)} " : null;
+            string args = $"{multiThreadParam}{parameters}";
+            await _ffmpeg.RunProcess(args, cancellationToken, _priority);
         }
-
-        public void SetPriority(ProcessPriorityClass? priority)
+        finally
         {
-            _priority = priority;
+            _ffmpeg.OnProgress -= OnProgress;
+            _ffmpeg.OnDataReceived -= OnDataReceived;
+            _ffmpeg.OnProgress += null;
+            _ffmpeg.OnDataReceived -= null;
+            _multiThread = false;
+            _ffmpeg = null;
         }
-
-        /// <summary>
-        /// Execute ffmpeg with all parameters and reset parameters at the end
-        /// </summary>
-        /// <param name="parameters">ffmpeg parameters</param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
-        /// <exception cref="InvalidOperationException">when ffmpeg already executed</exception>
-        public async Task<FFmpegResult> Start(string parameters, CancellationToken cancellationToken)
+        stopwatch.Stop();
+        return new FFmpegResult
         {
-            if (_ffmpeg != null)
-                throw new InvalidOperationException("ffmpeg has already been started. ");
-
-            CustomStopwatch stopwatch = new();
-            stopwatch.Start();
-            _ffmpeg = new CrFFmpegWrapper();
-            try
-            {
-                _ffmpeg.OnProgress += OnProgress;
-                _ffmpeg.OnDataReceived += OnDataReceived;
-                string? multiThreadParam =
-                    _multiThread ? $"-threads {Math.Min(Environment.ProcessorCount, 16)} " : null;
-                string args = $"{multiThreadParam}{parameters}";
-                await _ffmpeg.RunProcess(args, cancellationToken, _priority);
-            }
-            finally
-            {
-                _ffmpeg.OnProgress -= OnProgress;
-                _ffmpeg.OnDataReceived -= OnDataReceived;
-                _ffmpeg.OnProgress += null;
-                _ffmpeg.OnDataReceived -= null;
-                _multiThread = false;
-                _ffmpeg = null;
-            }
-            stopwatch.Stop();
-            return new FFmpegResult
-            {
-                StartTime = stopwatch.StartAt,
-                EndTime = stopwatch.EndAt,
-                Arguments = parameters
-            };
-        }
+            StartTime = stopwatch.StartAt,
+            EndTime = stopwatch.EndAt,
+            Arguments = parameters
+        };
     }
 }

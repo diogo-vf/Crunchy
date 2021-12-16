@@ -1,12 +1,10 @@
-﻿using System.Collections.Generic;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 
-namespace CrunchyBetaDownloader.Api.ResponsesClasses
+namespace CrunchyBetaDownloader.Api.ResponsesClasses;
+
+public class EpisodesResponse : Response
 {
-    public class EpisodesResponse : Response
-    {
-        [JsonProperty("Items")]
-        public List<Episode>? Episodes;
+    [JsonProperty("Items")]
+    public List<Episode>? Episodes;
 
-    }
 }

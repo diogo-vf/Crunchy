@@ -1,19 +1,17 @@
-﻿using System;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 
-namespace CrunchyBetaDownloader.Api.utils
+namespace CrunchyBetaDownloader.Api.utils;
+
+public class TimespanFromMsConverter : JsonConverter<TimeSpan>
 {
-    public class TimespanFromMsConverter : JsonConverter<TimeSpan>
+    public override void WriteJson(JsonWriter writer, TimeSpan value, JsonSerializer serializer)
     {
-        public override void WriteJson(JsonWriter writer, TimeSpan value, JsonSerializer serializer)
-        {
-            writer.WriteValue(value.TotalMilliseconds);
-        }
+        writer.WriteValue(value.TotalMilliseconds);
+    }
 
-        public override TimeSpan ReadJson(JsonReader reader, Type objectType, TimeSpan existingValue, bool hasExistingValue, JsonSerializer serializer)
-        {
-            long? ms = reader.Value as long?;
-            return TimeSpan.FromMilliseconds(ms ?? 0);
-        }
+    public override TimeSpan ReadJson(JsonReader reader, Type objectType, TimeSpan existingValue, bool hasExistingValue, JsonSerializer serializer)
+    {
+        long? ms = reader.Value as long?;
+        return TimeSpan.FromMilliseconds(ms ?? 0);
     }
 }

@@ -1,44 +1,42 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
-namespace CrunchyBetaDownloader.FFtools.utils
+namespace CrunchyBetaDownloader.FFtools.utils;
+
+public sealed class CustomStopwatch : Stopwatch
 {
-    public sealed class CustomStopwatch : Stopwatch
+    public DateTime? StartAt { get; private set; }
+    public DateTime? EndAt { get; private set; }
+
+
+    public new void Start()
     {
-        public DateTime? StartAt { get; private set; }
-        public DateTime? EndAt { get; private set; }
+        StartAt = DateTime.Now;
 
+        base.Start();
+    }
 
-        public new void Start()
-        {
-            StartAt = DateTime.Now;
+    public new void Stop()
+    {
+        EndAt = DateTime.Now;
 
-            base.Start();
-        }
+        base.Stop();
+    }
 
-        public new void Stop()
-        {
-            EndAt = DateTime.Now;
+    public TimeSpan? TotalDuration() => EndAt - StartAt;
 
-            base.Stop();
-        }
+    public new void Reset()
+    {
+        StartAt = null;
+        EndAt = null;
 
-        public TimeSpan? TotalDuration() => EndAt - StartAt;
+        base.Reset();
+    }
 
-        public new void Reset()
-        {
-            StartAt = null;
-            EndAt = null;
+    public new void Restart()
+    {
+        StartAt = DateTime.Now;
+        EndAt = null;
 
-            base.Reset();
-        }
-
-        public new void Restart()
-        {
-            StartAt = DateTime.Now;
-            EndAt = null;
-
-            base.Restart();
-        }
+        base.Restart();
     }
 }
